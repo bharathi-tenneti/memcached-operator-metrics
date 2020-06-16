@@ -20,12 +20,14 @@ import (
 	"flag"
 	"os"
 
+	"github.com/example-inc/memcached-operator/api/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	cachev1alpha1 "github.com/example-inc/memcached-operator/api/v1alpha1"
 	"github.com/example-inc/memcached-operator/controllers"
@@ -33,8 +35,9 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme          = runtime.NewScheme()
+	setupLog        = ctrl.Log.WithName("setup")
+	metricsRegistry metrics.RegistererGathererPredicater
 )
 
 func init() {
@@ -42,6 +45,9 @@ func init() {
 
 	_ = cachev1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
+
+	metricsRegistry = metrics.NewDefaultRegistry()
+
 }
 
 func main() {
@@ -73,12 +79,26 @@ func main() {
 		Kind:    "Memcached",
 	}
 
+	if metricsRegistry != nil {
+		if err := mgr.Add(&metrics.Server{
+			Gatherer:      metricsRegistry,
+			ListenAddress: "0.0.0.0:8686",
+		}); err != nil {
+			os.Exit(1)
+		}
+	}
+
+	var predicates []predicate.Predicate
+	if metricsRegistry != nil {
+		predicates = append(predicates, metricsRegistry.Predicate())
+	}
+
 	if err = (&controllers.MemcachedReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Memcached"),
 		Scheme: mgr.GetScheme(),
 		Gvk:    gvk,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, predicates...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)
 	}

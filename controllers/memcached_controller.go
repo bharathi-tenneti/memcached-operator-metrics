@@ -16,25 +16,19 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/example-inc/memcached-operator/api/metrics"
 
@@ -187,69 +181,11 @@ func getPodNames(pods []corev1.Pod) []string {
 	return podNames
 }
 
-func (r *MemcachedReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// SetupWithManager ...
+func (r *MemcachedReconciler) SetupWithManager(mgr ctrl.Manager, p ...predicate.Predicate) error {
 
-	controllerName := fmt.Sprintf("%v-controller", strings.ToLower(r.Gvk.Kind))
-
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: r.maxConcurrentReconciles})
-	if err != nil {
-		return err
-	}
-
-	r.metricsRegistry = metrics.NewLegacyRegistry("Memcached")
-
-	if r.metricsRegistry != nil {
-		if err := mgr.Add(&metrics.Server{
-			Gatherer:      r.metricsRegistry,
-			ListenAddress: "0.0.0.0:8686",
-		}); err != nil {
-			return err
-		}
-	}
-	if err := r.setupWatches(mgr, c); err != nil {
-		return err
-	}
-
-	r.Log.Info("Watching resource",
-		"group", r.Gvk.Group,
-		"version", r.Gvk.Version,
-		"kind", r.Gvk.Kind,
-	)
-
-	return nil
-}
-
-func (r *MemcachedReconciler) setupWatches(mgr ctrl.Manager, c controller.Controller) error {
-	var predicates []predicate.Predicate
-	if r.metricsRegistry != nil {
-		predicates = append(predicates, r.metricsRegistry.Predicate())
-	}
-
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(*r.Gvk)
-	if err := c.Watch(
-		&source.Kind{Type: obj},
-		&handler.EnqueueRequestForObject{},
-		predicates...,
-	); err != nil {
-		return err
-	}
-	/*secret := &corev1.Secret{}
-	secret.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "",
-		Version: "v1",
-		Kind:    "Secret",
-	})
-
-	if err := c.Watch(
-		&source.Kind{Type: secret},
-		&handler.EnqueueRequestForOwner{
-			OwnerType:    obj,
-			IsController: true,
-		},
-	); err != nil {
-		return err
-	}*/
-
-	return nil
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&cachev1alpha1.Memcached{}, builder.WithPredicates(p...)).
+		Owns(&appsv1.Deployment{}).
+		Complete(r)
 }
