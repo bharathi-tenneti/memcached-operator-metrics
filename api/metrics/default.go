@@ -18,7 +18,6 @@ package metrics
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -28,15 +27,11 @@ type CRInfoGauge struct {
 	*prometheus.GaugeVec
 }
 
-func crInfoGaugeName(kind string) string {
-	return fmt.Sprintf("%s_info", strings.ToLower(kind))
-}
-
 func NewCRInfoGauge() *CRInfoGauge {
 	return &CRInfoGauge{
 		prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: crInfoGaugeName("Memcached"),
-			Help: fmt.Sprintf("Information about the %s custom resource", "Memcached"),
+			Name: "custom_resource_info",
+			Help: fmt.Sprintf("Information about the custom resources"),
 		}, []string{"namespace", "name", "group", "kind"}),
 	}
 }
