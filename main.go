@@ -20,7 +20,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/example-inc/memcached-operator/api/metrics"
+	"github.com/example-inc/memcached-operator-metrics/api/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	cachev1alpha1 "github.com/example-inc/memcached-operator/api/v1alpha1"
-	"github.com/example-inc/memcached-operator/controllers"
+	cachev1alpha1 "github.com/example-inc/memcached-operator-metrics/api/v1alpha1"
+	"github.com/example-inc/memcached-operator-metrics/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
