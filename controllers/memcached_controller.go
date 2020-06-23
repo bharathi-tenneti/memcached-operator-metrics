@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -32,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/example-inc/memcached-operator-metrics/api/metrics"
-
 	cachev1alpha1 "github.com/example-inc/memcached-operator-metrics/api/v1alpha1"
 )
 
@@ -41,9 +39,8 @@ type MemcachedReconciler struct {
 	client.Client
 	Log                     logr.Logger
 	Scheme                  *runtime.Scheme
-	metricsRegistry         metrics.RegistererGathererPredicater
-	Gvk                     *schema.GroupVersionKind
 	maxConcurrentReconciles int
+	summaryVec              *metrics.SummaryInfo
 }
 
 // +kubebuilder:rbac:groups=cache.example.com,resources=memcacheds,verbs=get;list;watch;create;update;patch;delete
@@ -57,6 +54,11 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Fetch the Memcached instance
 	memcached := &cachev1alpha1.Memcached{}
+	labels := map[string]string{
+		"name":      memcached.Name,
+		"namespace": memcached.Namespace,
+		"size":      string(memcached.Spec.Size),
+	}
 	err := r.Get(ctx, req.NamespacedName, memcached)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -64,6 +66,11 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			log.Info("Memcached resource not found. Ignoring since object must be deleted")
+
+			// Delete metrics for memcached resource
+			if memcached.GetFinalizers() != nil && memcached.GetDeletionTimestamp() != nil {
+				r.summaryVec.Delete(labels)
+			}
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -83,6 +90,14 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Error(err, "Failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
 			return ctrl.Result{}, err
 		}
+		// set the metrics for new deployment
+
+		m, err := r.summaryVec.GetMetricWith(labels)
+		if err != nil {
+			panic(err)
+		}
+		m.Observe(1)
+
 		// Deployment created successfully - return and requeue
 		return ctrl.Result{Requeue: true}, nil
 	} else if err != nil {
@@ -99,6 +114,13 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Error(err, "Failed to update Deployment", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 			return ctrl.Result{}, err
 		}
+		// Update metrics for memcached
+		m, err := r.summaryVec.GetMetricWith(labels)
+		if err != nil {
+			panic(err)
+		}
+		m.Observe(1)
+
 		// Spec updated - return and requeue
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -182,7 +204,6 @@ func getPodNames(pods []corev1.Pod) []string {
 	return podNames
 }
 
-// SetupWithManager ...
 func (r *MemcachedReconciler) SetupWithManager(mgr ctrl.Manager, p ...predicate.Predicate) error {
 
 	return ctrl.NewControllerManagedBy(mgr).

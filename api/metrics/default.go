@@ -27,6 +27,31 @@ type CRInfoGauge struct {
 	*prometheus.GaugeVec
 }
 
+type SummaryInfo struct {
+	*prometheus.SummaryVec
+}
+
+type CounterInfo struct {
+	*prometheus.CounterVec
+}
+
+func NewCounterInfo() *CounterInfo {
+	return &CounterInfo{
+		prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "counter_info",
+			Help: fmt.Sprintf("Information about the custom resources partitions."),
+		}, []string{"namespace", "name"}),
+	}
+}
+func NewSummaryInfo() *SummaryInfo {
+	return &SummaryInfo{
+		prometheus.NewSummaryVec(prometheus.SummaryOpts{
+			Name: "summary_info",
+			Help: fmt.Sprintf("Information about the custom resources size"),
+		}, []string{"namespace", "name", "size"}),
+	}
+}
+
 func NewCRInfoGauge() *CRInfoGauge {
 	return &CRInfoGauge{
 		prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -76,8 +101,12 @@ func (vec *CRInfoGauge) set(name, namespace, group, kind string) {
 }
 
 func NewDefaultRegistry() RegistererGathererPredicater {
-	custom_resource_info := NewCRInfoGauge()
+	crInfo := NewCRInfoGauge()
+	summaryInfo := NewSummaryInfo()
+	counterInfo := NewCounterInfo()
 	r := NewRegistry()
-	r.MustRegister(custom_resource_info)
+	r.MustRegister(crInfo)
+	r.MustRegister(summaryInfo)
+	r.MustRegister(counterInfo)
 	return r
 }
