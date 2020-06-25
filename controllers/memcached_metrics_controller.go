@@ -25,8 +25,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/example-inc/memcached-operator-metrics/api/metrics"
 	cachev1alpha1 "github.com/example-inc/memcached-operator-metrics/api/v1alpha1"
+	"github.com/example-inc/memcached-operator-metrics/pkg/metrics"
 )
 
 // MemcachedMetricsReconciler reconciles metrics for a Memcached object`
@@ -35,7 +35,7 @@ type MemcachedMetricsReconciler struct {
 	Log                     logr.Logger
 	Scheme                  *runtime.Scheme
 	maxConcurrentReconciles int
-	counterVec              *metrics.CounterInfo
+	CounterVec              *metrics.CounterInfo
 }
 
 // +kubebuilder:rbac:groups=cache.example.com,resources=memcacheds,verbs=get;list;watch;create;update;patch;delete
@@ -63,7 +63,7 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 
 			// Delete metrics for memcached resource
 			if memcached.GetFinalizers() != nil && memcached.GetDeletionTimestamp() != nil {
-				r.counterVec.Delete(labels)
+				r.CounterVec.Delete(labels)
 			}
 
 			return ctrl.Result{}, nil
@@ -78,7 +78,7 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	err = r.Get(ctx, types.NamespacedName{Name: memcached.Name, Namespace: memcached.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		// set the metrics for new deployment
-		m, err := r.counterVec.GetMetricWith(labels)
+		m, err := r.CounterVec.GetMetricWith(labels)
 		if err != nil {
 			log.Error(err, "Failed to create new metrics for", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 			return ctrl.Result{}, err
@@ -95,7 +95,7 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	if *found.Spec.Replicas != size {
 		found.Spec.Replicas = &size
 		// Update metrics for memcached
-		m, err := r.counterVec.GetMetricWith(labels)
+		m, err := r.CounterVec.GetMetricWith(labels)
 		if err != nil {
 			log.Error(err, "Failed to update metrics", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 			return ctrl.Result{}, err

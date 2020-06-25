@@ -101,12 +101,6 @@ func (vec *CRInfoGauge) set(name, namespace, group, kind string) {
 }
 
 func NewDefaultRegistry() RegistererGathererPredicater {
-	crInfo := NewCRInfoGauge()
-	summaryInfo := NewSummaryInfo()
-	counterInfo := NewCounterInfo()
 	r := NewRegistry()
-	r.MustRegister(crInfo)
-	r.MustRegister(summaryInfo)
-	r.MustRegister(counterInfo)
 	return r
 }

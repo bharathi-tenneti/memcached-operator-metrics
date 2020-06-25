@@ -30,8 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/example-inc/memcached-operator-metrics/api/metrics"
 	cachev1alpha1 "github.com/example-inc/memcached-operator-metrics/api/v1alpha1"
+	"github.com/example-inc/memcached-operator-metrics/pkg/metrics"
 )
 
 // MemcachedReconciler reconciles a Memcached object`
@@ -40,7 +40,7 @@ type MemcachedReconciler struct {
 	Log                     logr.Logger
 	Scheme                  *runtime.Scheme
 	maxConcurrentReconciles int
-	summaryVec              *metrics.SummaryInfo
+	SummaryVec              *metrics.SummaryInfo
 }
 
 // +kubebuilder:rbac:groups=cache.example.com,resources=memcacheds,verbs=get;list;watch;create;update;patch;delete
@@ -69,7 +69,7 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			// Delete metrics for memcached resource
 			if memcached.GetFinalizers() != nil && memcached.GetDeletionTimestamp() != nil {
-				r.summaryVec.Delete(labels)
+				r.SummaryVec.Delete(labels)
 			}
 			return ctrl.Result{}, nil
 		}
@@ -92,7 +92,7 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 		// set the metrics for new deployment
 
-		m, err := r.summaryVec.GetMetricWith(labels)
+		m, err := r.SummaryVec.GetMetricWith(labels)
 		if err != nil {
 			panic(err)
 		}
@@ -115,7 +115,7 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 		// Update metrics for memcached
-		m, err := r.summaryVec.GetMetricWith(labels)
+		m, err := r.SummaryVec.GetMetricWith(labels)
 		if err != nil {
 			panic(err)
 		}

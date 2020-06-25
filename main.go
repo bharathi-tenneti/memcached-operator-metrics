@@ -20,7 +20,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/example-inc/memcached-operator-metrics/api/metrics"
+	"github.com/example-inc/memcached-operator-metrics/pkg/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -78,13 +78,22 @@ func main() {
 	}); err != nil {
 		os.Exit(1)
 	}
+	crInfo := metrics.NewCRInfoGauge()
+	summaryInfo := metrics.NewSummaryInfo()
+	counterInfo := metrics.NewCounterInfo()
+
+	metricsRegistry.MustRegister(crInfo)
+	metricsRegistry.MustRegister(summaryInfo)
+	metricsRegistry.MustRegister(counterInfo)
+
 	var predicates []predicate.Predicate
 	predicates = append(predicates, metricsRegistry.Predicate())
 
 	if err = (&controllers.MemcachedReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Memcached"),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		Log:        ctrl.Log.WithName("controllers").WithName("Memcached"),
+		Scheme:     mgr.GetScheme(),
+		SummaryVec: summaryInfo,
 	}).SetupWithManager(mgr, predicates...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)
@@ -92,9 +101,10 @@ func main() {
 
 	// Reconciler for watching only Metrics.
 	if err = (&controllers.MemcachedMetricsReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Memcached_metrics"),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		Log:        ctrl.Log.WithName("controllers").WithName("Memcached_metrics"),
+		Scheme:     mgr.GetScheme(),
+		CounterVec: counterInfo,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)
