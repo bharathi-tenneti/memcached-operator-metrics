@@ -27,8 +27,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/bharathi-tenneti/memcached-operator-metrics/api/metrics"
 	cachev1alpha1 "github.com/bharathi-tenneti/memcached-operator-metrics/api/v1alpha1"
-	"github.com/bharathi-tenneti/memcached-operator-metrics/pkg/metrics"
 )
 
 // MemcachedMetricsReconciler reconciles metrics for a Memcached object`

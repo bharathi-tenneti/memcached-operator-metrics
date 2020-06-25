@@ -27,9 +27,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/bharathi-tenneti/memcached-operator-metrics/api/metrics"
 	cachev1alpha1 "github.com/bharathi-tenneti/memcached-operator-metrics/api/v1alpha1"
 	"github.com/bharathi-tenneti/memcached-operator-metrics/controllers"
-	"github.com/bharathi-tenneti/memcached-operator-metrics/pkg/metrics"
 	// +kubebuilder:scaffold:imports
 )
 
