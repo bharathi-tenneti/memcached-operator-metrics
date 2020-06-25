@@ -1,4 +1,6 @@
 /*
+
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -30,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	cachev1alpha1 "github.com/example-inc/memcached-operator-metrics/api/v1alpha1"
-	"github.com/example-inc/memcached-operator-metrics/pkg/metrics"
+	cachev1alpha1 "github.com/bharathi-tenneti/memcached-operator-metrics/api/v1alpha1"
+	"github.com/bharathi-tenneti/memcached-operator-metrics/pkg/metrics"
 )
 
 // MemcachedReconciler reconciles a Memcached object`
