@@ -20,7 +20,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/example-inc/memcached-operator-metrics/pkg/metrics"
+	"github.com/bharathi-tenneti/memcached-operator-metrics/pkg/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	cachev1alpha1 "github.com/example-inc/memcached-operator-metrics/api/v1alpha1"
-	"github.com/example-inc/memcached-operator-metrics/controllers"
+	cachev1alpha1 "github.com/bharathi-tenneti/memcached-operator-metrics/api/v1alpha1"
+	"github.com/bharathi-tenneti/memcached-operator-metrics/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
