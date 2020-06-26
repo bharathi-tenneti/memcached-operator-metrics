@@ -86,12 +86,14 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if f == "cleanup-metrics" {
 				r.SizeVec.Delete(labels)
 				controllerutil.RemoveFinalizer(memcached, "cleanup-metrics")
+				r.Update(ctx, memcached)
 				return ctrl.Result{}, nil
 			}
 		}
 	}
 	// set the Finalizer and metrics for memcached
 	controllerutil.AddFinalizer(memcached, "cleanup-metrics")
+	r.Update(ctx, memcached)
 	m.Set(float64(memcached.Spec.Size))
 
 	// Check if the deployment already exists, if not create a new one
@@ -106,8 +108,6 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Error(err, "Failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
 			return ctrl.Result{}, err
 		}
-		// set the metrics for new deployment
-		m.Set(float64(memcached.Spec.Size))
 
 		// Deployment created successfully - return and requeue
 		return ctrl.Result{Requeue: true}, nil
@@ -125,8 +125,6 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Error(err, "Failed to update Deployment", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 			return ctrl.Result{}, err
 		}
-		// Update metrics for memcached
-		m.Set(float64(memcached.Spec.Size))
 
 		// Spec updated - return and requeue
 		return ctrl.Result{Requeue: true}, nil
