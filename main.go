@@ -79,21 +79,21 @@ func main() {
 		os.Exit(1)
 	}
 	crInfo := metrics.NewCRInfoGauge()
+	sizeInfo := metrics.NewSizeInfo()
 	summaryInfo := metrics.NewSummaryInfo()
-	counterInfo := metrics.NewCounterInfo()
 
 	metricsRegistry.MustRegister(crInfo)
+	metricsRegistry.MustRegister(sizeInfo)
 	metricsRegistry.MustRegister(summaryInfo)
-	metricsRegistry.MustRegister(counterInfo)
 
 	var predicates []predicate.Predicate
 	predicates = append(predicates, metricsRegistry.Predicate())
 
 	if err = (&controllers.MemcachedReconciler{
-		Client:     mgr.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName("Memcached"),
-		Scheme:     mgr.GetScheme(),
-		SummaryVec: summaryInfo,
+		Client:  mgr.GetClient(),
+		Log:     ctrl.Log.WithName("controllers").WithName("Memcached"),
+		Scheme:  mgr.GetScheme(),
+		SizeVec: sizeInfo,
 	}).SetupWithManager(mgr, predicates...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)
@@ -104,7 +104,7 @@ func main() {
 		Client:     mgr.GetClient(),
 		Log:        ctrl.Log.WithName("controllers").WithName("Memcached_metrics"),
 		Scheme:     mgr.GetScheme(),
-		CounterVec: counterInfo,
+		SummaryVec: summaryInfo,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)

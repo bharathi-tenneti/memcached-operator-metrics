@@ -26,18 +26,19 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/bharathi-tenneti/memcached-operator-metrics/api/metrics"
 	cachev1alpha1 "github.com/bharathi-tenneti/memcached-operator-metrics/api/v1alpha1"
 )
 
-// MemcachedMetricsReconciler reconciles metrics for a Memcached object`
+// MemcachedMetricsReconciler reconciles a Memcached object`
 type MemcachedMetricsReconciler struct {
 	client.Client
 	Log                     logr.Logger
 	Scheme                  *runtime.Scheme
 	maxConcurrentReconciles int
-	CounterVec              *metrics.CounterInfo
+	SummaryVec              *metrics.SummaryInfo
 }
 
 // +kubebuilder:rbac:groups=cache.example.com,resources=memcacheds,verbs=get;list;watch;create;update;patch;delete
@@ -51,10 +52,7 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 
 	// Fetch the Memcached instance
 	memcached := &cachev1alpha1.Memcached{}
-	labels := map[string]string{
-		"name":      memcached.Name,
-		"namespace": memcached.Namespace,
-	}
+
 	err := r.Get(ctx, req.NamespacedName, memcached)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -62,12 +60,6 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			log.Info("Memcached resource not found. Ignoring since object must be deleted")
-
-			// Delete metrics for memcached resource
-			if memcached.GetFinalizers() != nil && memcached.GetDeletionTimestamp() != nil {
-				r.CounterVec.Delete(labels)
-			}
-
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -75,18 +67,38 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 		return ctrl.Result{}, err
 	}
 
+	labels := map[string]string{
+		"name":       memcached.Name,
+		"namespace":  memcached.Namespace,
+		"apiversion": memcached.APIVersion,
+		"kind":       memcached.Kind,
+	}
+	m, metricErr := r.SummaryVec.GetMetricWith(labels)
+	if metricErr != nil {
+		panic(metricErr)
+	}
+	// Delete metrics if no memcached resources are found.
+	if memcached.GetFinalizers() != nil && memcached.GetDeletionTimestamp() != nil {
+		for _, f := range memcached.GetFinalizers() {
+			if f == "cleanup-summary-metrics" {
+				r.SummaryVec.Delete(labels)
+				controllerutil.RemoveFinalizer(memcached, "cleanup-summary-metrics")
+				return ctrl.Result{}, nil
+			}
+		}
+	}
+	// set the Finalizer and metrics for memcached
+	controllerutil.AddFinalizer(memcached, "cleanup-summary-metrics")
+	m.Set(float64(memcached.Spec.Size))
+
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
 	err = r.Get(ctx, types.NamespacedName{Name: memcached.Name, Namespace: memcached.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		// set the metrics for new deployment
-		m, err := r.CounterVec.GetMetricWith(labels)
-		if err != nil {
-			log.Error(err, "Failed to create new metrics for", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
-			return ctrl.Result{}, err
-		}
-		m.Inc()
-		// Metrics created successfully - return and requeue
+		m.Set(float64(memcached.Spec.Size))
+
+		// Deployment created successfully - return and requeue
 		return ctrl.Result{Requeue: true}, nil
 	} else if err != nil {
 		log.Error(err, "Failed to get Deployment")
@@ -96,13 +108,10 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	size := memcached.Spec.Size
 	if *found.Spec.Replicas != size {
 		found.Spec.Replicas = &size
+
 		// Update metrics for memcached
-		m, err := r.CounterVec.GetMetricWith(labels)
-		if err != nil {
-			log.Error(err, "Failed to update metrics", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
-			return ctrl.Result{}, err
-		}
-		m.Inc()
+		m.Set(float64(memcached.Spec.Size))
+
 		// Spec updated - return and requeue
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -110,6 +119,7 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager ...
 func (r *MemcachedMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
