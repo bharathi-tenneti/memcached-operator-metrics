@@ -43,7 +43,7 @@ type MemcachedReconciler struct {
 	Log                     logr.Logger
 	Scheme                  *runtime.Scheme
 	maxConcurrentReconciles int
-	SizeVec                 *metrics.SizeInfo
+	TimeVec                 *metrics.TimeInfo
 }
 
 // +kubebuilder:rbac:groups=cache.example.com,resources=memcacheds,verbs=get;list;watch;create;update;patch;delete
@@ -76,7 +76,7 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		"name":      memcached.Name,
 		"namespace": memcached.Namespace,
 	}
-	m, metricErr := r.SizeVec.GetMetricWith(labels)
+	m, metricErr := r.TimeVec.GetMetricWith(labels)
 	if metricErr != nil {
 		panic(metricErr)
 	}
@@ -84,7 +84,7 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if memcached.GetFinalizers() != nil && memcached.GetDeletionTimestamp() != nil {
 		for _, f := range memcached.GetFinalizers() {
 			if f == "cleanup-metrics" {
-				r.SizeVec.Delete(labels)
+				r.TimeVec.Delete(labels)
 				controllerutil.RemoveFinalizer(memcached, "cleanup-metrics")
 				r.Update(ctx, memcached)
 				return ctrl.Result{}, nil

@@ -27,7 +27,7 @@ type CRInfoGauge struct {
 	*prometheus.GaugeVec
 }
 
-type SizeInfo struct {
+type TimeInfo struct {
 	*prometheus.GaugeVec
 }
 
@@ -43,8 +43,8 @@ func NewSummaryInfo() *SummaryInfo {
 		}, []string{"namespace", "name", "apiversion", "kind"}),
 	}
 }
-func NewSizeInfo() *SizeInfo {
-	return &SizeInfo{
+func NewTimeInfo() *TimeInfo {
+	return &TimeInfo{
 		prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "size_info",
 			Help: fmt.Sprintf("Information about the custom resources size"),

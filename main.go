@@ -79,11 +79,11 @@ func main() {
 		os.Exit(1)
 	}
 	crInfo := metrics.NewCRInfoGauge()
-	sizeInfo := metrics.NewSizeInfo()
+	timeInfo := metrics.NewTimeInfo()
 	summaryInfo := metrics.NewSummaryInfo()
 
 	metricsRegistry.MustRegister(crInfo)
-	metricsRegistry.MustRegister(sizeInfo)
+	metricsRegistry.MustRegister(timeInfo)
 	metricsRegistry.MustRegister(summaryInfo)
 
 	var predicates []predicate.Predicate
@@ -93,7 +93,7 @@ func main() {
 		Client:  mgr.GetClient(),
 		Log:     ctrl.Log.WithName("controllers").WithName("Memcached"),
 		Scheme:  mgr.GetScheme(),
-		SizeVec: sizeInfo,
+		TimeVec: timeInfo,
 	}).SetupWithManager(mgr, predicates...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)
