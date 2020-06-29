@@ -94,7 +94,7 @@ func (r *MemcachedReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// set the Finalizer and metrics for memcached
 	controllerutil.AddFinalizer(memcached, "cleanup-metrics")
 	r.Update(ctx, memcached)
-	m.Set(float64(memcached.Spec.Size))
+	m.SetToCurrentTime()
 
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}

@@ -20,10 +20,8 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -91,27 +89,7 @@ func (r *MemcachedMetricsReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	// set the Finalizer and metrics for memcached
 	controllerutil.AddFinalizer(memcached, "cleanup-summary-metrics")
 	r.Update(ctx, memcached)
-	m.Set(float64(memcached.Spec.Size))
-
-	// Check if the deployment already exists, if not create a new one
-	found := &appsv1.Deployment{}
-	err = r.Get(ctx, types.NamespacedName{Name: memcached.Name, Namespace: memcached.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-
-		// Deployment created successfully - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	} else if err != nil {
-		log.Error(err, "Failed to get Deployment")
-		return ctrl.Result{}, err
-	}
-	// Ensure the deployment size is the same as the spec
-	size := memcached.Spec.Size
-	if *found.Spec.Replicas != size {
-		found.Spec.Replicas = &size
-		// Spec updated - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	}
-
+	m.SetToCurrentTime()
 	return ctrl.Result{}, nil
 }
 
@@ -120,6 +98,5 @@ func (r *MemcachedMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cachev1alpha1.Memcached{}).
-		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
