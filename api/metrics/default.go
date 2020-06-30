@@ -27,46 +27,67 @@ type CRInfoGauge struct {
 	*prometheus.GaugeVec
 }
 
+type TimeInfo struct {
+	*prometheus.GaugeVec
+}
+
+type SummaryInfo struct {
+	*prometheus.GaugeVec
+}
+
+func NewSummaryInfo() *SummaryInfo {
+	return &SummaryInfo{
+		prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "summary_info",
+			Help: fmt.Sprintf("Information about the custom resource summary."),
+		}, []string{"namespace", "name", "apiversion", "kind"}),
+	}
+}
+func NewTimeInfo() *TimeInfo {
+	return &TimeInfo{
+		prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "size_info",
+			Help: fmt.Sprintf("Information about the custom resources size"),
+		}, []string{"namespace", "name"}),
+	}
+}
+
 func NewCRInfoGauge() *CRInfoGauge {
 	return &CRInfoGauge{
 		prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "custom_resource_info",
 			Help: fmt.Sprintf("Information about the custom resources"),
-		}, []string{"namespace", "name", "group", "kind"}),
+		}, []string{"namespace", "name", "created"}),
 	}
 }
 
 func (vec *CRInfoGauge) Create(e event.CreateEvent) {
 	name := e.Meta.GetName()
 	namespace := e.Meta.GetNamespace()
-	group := e.Object.GetObjectKind().GroupVersionKind().Group
-	kind := e.Object.GetObjectKind().GroupVersionKind().Kind
-	vec.set(name, namespace, group, kind)
+	created := e.Meta.GetCreationTimestamp().String()
+	vec.set(name, namespace, created)
 }
 
 func (vec *CRInfoGauge) Update(e event.UpdateEvent) {
 	name := e.MetaNew.GetName()
 	namespace := e.MetaNew.GetNamespace()
-	group := e.ObjectNew.GetObjectKind().GroupVersionKind().Group
-	kind := e.ObjectNew.GetObjectKind().GroupVersionKind().Kind
-	vec.set(name, namespace, group, kind)
+	created := e.MetaNew.GetCreationTimestamp().String()
+	vec.set(name, namespace, created)
 }
 
 func (vec *CRInfoGauge) Delete(e event.DeleteEvent) {
 	vec.GaugeVec.Delete(map[string]string{
 		"name":      e.Meta.GetName(),
 		"namespace": e.Meta.GetNamespace(),
-		"group":     e.Object.GetObjectKind().GroupVersionKind().Group,
-		"kind":      e.Object.GetObjectKind().GroupVersionKind().Kind,
+		"created":   e.Meta.GetCreationTimestamp().String(),
 	})
 }
 
-func (vec *CRInfoGauge) set(name, namespace, group, kind string) {
+func (vec *CRInfoGauge) set(name, namespace, created string) {
 	labels := map[string]string{
 		"name":      name,
 		"namespace": namespace,
-		"group":     group,
-		"kind":      kind,
+		"created":   created,
 	}
 	m, err := vec.GaugeVec.GetMetricWith(labels)
 	if err != nil {
@@ -76,8 +97,6 @@ func (vec *CRInfoGauge) set(name, namespace, group, kind string) {
 }
 
 func NewDefaultRegistry() RegistererGathererPredicater {
-	custom_resource_info := NewCRInfoGauge()
 	r := NewRegistry()
-	r.MustRegister(custom_resource_info)
 	return r
 }

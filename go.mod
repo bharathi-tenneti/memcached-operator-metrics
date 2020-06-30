@@ -1,4 +1,4 @@
-module github.com/example-inc/memcached-operator-metrics
+module github.com/bharathi-tenneti/memcached-operator-metrics
 
 go 1.13
 

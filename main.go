@@ -20,17 +20,16 @@ import (
 	"flag"
 	"os"
 
-	"github.com/example-inc/memcached-operator-metrics/api/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	cachev1alpha1 "github.com/example-inc/memcached-operator-metrics/api/v1alpha1"
-	"github.com/example-inc/memcached-operator-metrics/controllers"
+	"github.com/bharathi-tenneti/memcached-operator-metrics/api/metrics"
+	cachev1alpha1 "github.com/bharathi-tenneti/memcached-operator-metrics/api/v1alpha1"
+	"github.com/bharathi-tenneti/memcached-operator-metrics/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -73,35 +72,44 @@ func main() {
 		os.Exit(1)
 	}
 
-	gvk := &schema.GroupVersionKind{
-		Group:   "cache.example.com",
-		Version: "v1alpha1",
-		Kind:    "Memcached",
+	if err := mgr.Add(&metrics.Server{
+		Gatherer:      metricsRegistry,
+		ListenAddress: "0.0.0.0:8686",
+	}); err != nil {
+		os.Exit(1)
 	}
+	crInfo := metrics.NewCRInfoGauge()
+	timeInfo := metrics.NewTimeInfo()
+	summaryInfo := metrics.NewSummaryInfo()
 
-	if metricsRegistry != nil {
-		if err := mgr.Add(&metrics.Server{
-			Gatherer:      metricsRegistry,
-			ListenAddress: "0.0.0.0:8686",
-		}); err != nil {
-			os.Exit(1)
-		}
-	}
+	metricsRegistry.MustRegister(crInfo)
+	metricsRegistry.MustRegister(timeInfo)
+	metricsRegistry.MustRegister(summaryInfo)
 
 	var predicates []predicate.Predicate
-	if metricsRegistry != nil {
-		predicates = append(predicates, metricsRegistry.Predicate())
-	}
+	predicates = append(predicates, metricsRegistry.Predicate())
 
 	if err = (&controllers.MemcachedReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Memcached"),
-		Scheme: mgr.GetScheme(),
-		Gvk:    gvk,
+		Client:  mgr.GetClient(),
+		Log:     ctrl.Log.WithName("controllers").WithName("Memcached"),
+		Scheme:  mgr.GetScheme(),
+		TimeVec: timeInfo,
 	}).SetupWithManager(mgr, predicates...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)
 	}
+
+	// Reconciler for watching only Metrics.
+	if err = (&controllers.MemcachedMetricsReconciler{
+		Client:     mgr.GetClient(),
+		Log:        ctrl.Log.WithName("controllers").WithName("Memcached_metrics"),
+		Scheme:     mgr.GetScheme(),
+		SummaryVec: summaryInfo,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

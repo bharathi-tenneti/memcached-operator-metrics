@@ -1,6 +1,6 @@
 domain: example.com
 layout: go.kubebuilder.io/v2.0.0
-repo: github.com/example-inc/memcached-operator-metrics
+repo: github.com/bharathi-tenneti/memcached-operator-metrics
 resources:
 - group: cache
   kind: Memcached
